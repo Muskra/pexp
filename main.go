@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-    "strings"
+	"strings"
+	//"strconv"
 	//"slices"
 
 	peparser "github.com/saferwall/pe"
@@ -145,15 +146,26 @@ func parseFile(filePath string) *peparser.File {
 	return pe
 }
 
-func checkSectionsStandard(sectionName string) { //, sectionFlags []string) {
+func checkSectionsStandard(sectionName string, sectionFlags []string) {
 
-    for key, values := range StandardSections {
-        if check := strings.Compare(sectionName, key); check == 0 {
-            fmt.Println(values)
-        } else {
-            fmt.Printf("sectionName: '%s'\ttype: '%T'\tkey: '%s'\ttype: '%T'\tcomp: %v\n", sectionName, sectionName, key, key, sectionName == key)
-        }
-    }
+	if values, ok := StandardSections[sectionName]; ok {
+		for _, flag := range sectionFlags {
+			exist := false
+			for _, val := range values {
+				if flag == val {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				fmt.Printf("\t\tNon standard characteristic found, got '%s'.\n", flag)
+			} else {
+				fmt.Printf("\t\t%s\n", flag)
+			}
+		}
+	} else {
+		fmt.Printf("\t\tNon standard section found.\n\t\tCharacteristics: %+v\n", sectionFlags)
+	}
 }
 
 // printHeaders Function simply prints imports in a nice way, i should make one that generate a csv output to be simpler to parse out
@@ -163,19 +175,19 @@ func printHeaders(pe *peparser.File) {
 	fmt.Printf("HEADERS:\n\n")
 
 	if pe.FileInfo.HasDOSHdr {
-		fmt.Printf("\tDOS Header:\n%v\n\n", pe.DOSHeader)
+		fmt.Printf("\tDOS Header:\n\t\t%v\n\n", pe.DOSHeader)
 	} else {
-		fmt.Printf("\tDOS Header:\tDOS Header is empty !\n\n")
+		fmt.Printf("\tDOS Header:\n\t\tDOS Header is empty !\n\n")
 	}
 	if pe.FileInfo.HasRichHdr {
-		fmt.Printf("\tRich Header:\n%v\n\n", pe.RichHeader)
+		fmt.Printf("\tRich Header:\n\t\t%v\n\n", pe.RichHeader)
 	} else {
-		fmt.Printf("\tRich Header:\tRich Header is empty !\n\n")
+		fmt.Printf("\tRich Header:\n\t\tRich Header is empty !\n\n")
 	}
 	if pe.FileInfo.HasNTHdr {
-		fmt.Printf("\tNT Header:\n%v\n\n", pe.NtHeader)
+		fmt.Printf("\tNT Header:\n\t\t%v\n\n", pe.NtHeader)
 	} else {
-		fmt.Printf("\tNT Header:\tNT Header is empty !\n\n")
+		fmt.Printf("\tNT Header:\n\t\tNT Header is empty !\n\n")
 	}
 }
 
@@ -186,17 +198,26 @@ func printCOFF(pe *peparser.File) {
 		// maybe implement this to be pretty printed
 		fmt.Printf("\t%v\n\n", pe.COFF)
 	} else {
-		fmt.Printf("COFF:\tsymbol table is empty !\n\n")
+		fmt.Printf("COFF:\n\tsymbol table is empty !\n\n")
 	}
 }
 
 // printSections Function simply prints imports in a nice way, i should make one that generate a csv output to be simpler to parse out
 func printSections(pe *peparser.File) {
 	if pe.FileInfo.HasSections {
-		fmt.Printf("SECTIONS:\n")
+		fmt.Printf("SECTIONS:\n\n")
 		for _, sec := range pe.Sections {
-			//flags := sec.PrettySectionFlags()
-			checkSectionsStandard(fmt.Sprintf("%s", sec.Header.Name))//, flags)
+			flags := sec.PrettySectionFlags()
+
+			fmt.Printf(
+				"\t%s\n",
+				strings.TrimRight(
+					fmt.Sprintf("%s", sec.Header.Name),
+					"\x00"))
+
+			s := strings.TrimRight(fmt.Sprintf("%s", sec.Header.Name), "\x00")
+
+			checkSectionsStandard(s, flags)
 
 		}
 	} else {
@@ -242,22 +263,16 @@ func main() {
 
 		printSections(peFile)
 
-		//checkSections(peFile)
+		printHeaders(peFile)
 
-		/*
-		   printHeaders(peFile)
+		printCOFF(peFile)
 
-		   printCOFF(peFile)
-
-		   printSections(peFile)
-
-		   impMap, err := getFunctions(peFile)
-		   if err != nil {
-		       fmt.Printf("%s", err)
-		   } else {
-		       printImports(impMap)
-		   }
-		*/
+		impMap, err := getFunctions(peFile)
+		if err != nil {
+			fmt.Printf("%s", err)
+		} else {
+			printImports(impMap)
+		}
 	}
 	fmt.Println()
 }
