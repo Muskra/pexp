@@ -1,6 +1,8 @@
 default:
 	go build .
 r:
-	go run . 7z2407-x64.exe
+	go run . --anomalies 7z2407-x64.exe
 br:
-	go build . && ./impexp 7z2407-x64.exe
+	go build . && ./pexp 7z2407-x64.exe
+fmt:
+	go fmt main.go
