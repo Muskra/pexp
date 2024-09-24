@@ -1,8 +1,8 @@
 default:
 	go build .
 r:
-	go run . --anomalies 7z2407-x64.exe
+	go run . --anomalies samples/7z2407-x64.exe
 br:
-	go build . && ./pexp 7z2407-x64.exe
+	go build . && ./pexp -sections -entropy samples/7z2407-x64.exe
 fmt:
 	go fmt main.go
