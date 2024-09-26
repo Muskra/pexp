@@ -1,11 +1,13 @@
 package main
 
 import (
+    "encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+    //yara "github.com/hillu/go-yara/v4"
 	peparser "github.com/saferwall/pe"
 )
 
@@ -19,6 +21,7 @@ const (
 	DOS
 	RICH
 	NT
+    CERTIFICATES
 )
 
 const (
@@ -33,7 +36,8 @@ const (
 	ImageSectionGpRel                = "GpReferenced"
 )
 
-var arguments = [9]*bool{}
+const ARGNUMBER = 10
+var arguments = [ARGNUMBER]*bool{}
 var entropy bool = false
 
 // StandardSections Variable is the actual Standard that Microsoft details here: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
@@ -310,6 +314,35 @@ func printImports(imps map[string][]string) {
 	}
 }
 
+func printCertificates(pe *peparser.File) {
+    fmt.Printf("CERTIFICATES:\n")
+    if len(pe.Certificates.Certificates) == 0 {
+        fmt.Printf("\tNo certificate found !\n")
+    } else {
+        certs := pe.Certificates.Certificates
+        for _, crt := range certs {
+            fmt.Printf("\n\tInformations:\n\t\tCertificate Authority:\t%s\n\t\tOwner:\t%s\n\t\tValidity:\t%s to %s\n\t\tSerial Number:\t%s\n\t\tPublic Key Algorithm:\t%s\n\t\tCertificate Authority Algorithm:\t%s",
+                crt.Info.Issuer,
+                crt.Info.Subject,
+                crt.Info.NotBefore,
+                crt.Info.NotAfter,
+                crt.Info.SerialNumber,
+                crt.Info.PublicKeyAlgorithm,
+                crt.Info.SignatureAlgorithm,
+            )
+            fmt.Printf("\n\tSignature Validation:\t%v\n\tSigner Verified:\t%v", 
+                crt.SignatureValid,
+                crt.Verified,
+            )
+            fmt.Printf("\n\tContent Signature (%s):\t%s\n",
+                crt.SignatureContent.Algorithm,
+                hex.EncodeToString(crt.SignatureContent.HashResult),
+            )
+        }
+    }
+    fmt.Println()
+}
+
 func abort(err error) {
 	fmt.Println(err)
 	flag.PrintDefaults()
@@ -349,6 +382,8 @@ func runParam(peFile *peparser.File, par int, isOption bool) {
 		printRichHeader(peFile, isOption)
 	case NT:
 		printNTHeader(peFile, isOption)
+    case CERTIFICATES:
+        printCertificates(peFile)
 	default:
 		panic(fmt.Errorf("Can't handle parameter, got '%d'", par))
 	}
@@ -375,7 +410,7 @@ func runCustom(peFile *peparser.File) {
 
 func main() {
 
-	arguments = [9]*bool{
+	arguments = [ARGNUMBER]*bool{
 		flag.Bool("entropy", false, "Calculates the entropy levels."),
 		flag.Bool("sections", false, "Print sections from the PE file."),
 		flag.Bool("headers", false, "Print all headers from the PE file."),
@@ -385,6 +420,7 @@ func main() {
 		flag.Bool("dos", false, "Print the DOS header of the PE file."),
 		flag.Bool("rich", false, "Print the Rich header of the PE file."),
 		flag.Bool("nt", false, "Print the NT header of the PE file."),
+        flag.Bool("certificates", false, "Print the certificates of the PE file."),
 	}
 
 	flag.Parse()
